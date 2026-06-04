@@ -9,15 +9,16 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.TimeUnit;
 
-public class SecureTokenService {
-    // Lấy secret key từ biến môi trường, fallback nếu chưa set
+public class InsecureTokenService {
+    // KHẮC PHỤC: Lấy secret key từ biến môi trường thay vì hardcode
     private static final String ENV_SECRET_KEY = System.getenv("JWT_SECRET_KEY");
-    private static final long ACCESS_TOKEN_EXPIRATION_MINUTES = 15; // 15 phút
+    // KHẮC PHỤC: Thời gian hết hạn Access Token chỉ 15 phút
+    private static final long ACCESS_TOKEN_EXPIRATION_MINUTES = 15;
 
     private Key getSigningKey() {
         if (ENV_SECRET_KEY == null || ENV_SECRET_KEY.length() < 32) {
             System.out.println("JWT_SECRET_KEY không tồn tại hoặc quá ngắn, dùng key ngẫu nhiên để test.");
-            return Keys.secretKeyFor(SignatureAlgorithm.HS256); // fallback: sinh key ngẫu nhiên
+            return Keys.secretKeyFor(SignatureAlgorithm.HS256); // fallback cho test
         }
         return Keys.hmacShaKeyFor(ENV_SECRET_KEY.getBytes());
     }
@@ -44,7 +45,7 @@ public class SecureTokenService {
     }
 
     public static void main(String[] args) throws InterruptedException {
-        SecureTokenService service = new SecureTokenService();
+        InsecureTokenService service = new InsecureTokenService();
         String username = "testUser";
 
         // Tạo token hợp lệ
@@ -64,9 +65,10 @@ public class SecureTokenService {
         System.out.println("\n--- Attacker attempts ---");
         System.out.println("Forged Token: " + forgedToken);
         System.out.println("Validation of forged token: " + service.validateToken(forgedToken));
+
         // Giả lập token hết hạn sau 15 phút
         System.out.println("\n--- Token expiration test ---");
         Thread.sleep(TimeUnit.MINUTES.toMillis(16)); // chờ 16 phút
-        System.out.println("Token valid after 16 minutes: " + service.validateToken(validToken)); // Phải trả về false
+        System.out.println("Token valid after 16 minutes: " + service.validateToken(validToken));
     }
 }
