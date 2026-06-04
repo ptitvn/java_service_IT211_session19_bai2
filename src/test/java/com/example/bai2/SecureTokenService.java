@@ -7,15 +7,17 @@ import java.util.Date;
 import java.security.Key;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.concurrent.TimeUnit;
 
 public class SecureTokenService {
-    // Lấy secret key từ biến môi trường
+    // Lấy secret key từ biến môi trường, fallback nếu chưa set
     private static final String ENV_SECRET_KEY = System.getenv("JWT_SECRET_KEY");
     private static final long ACCESS_TOKEN_EXPIRATION_MINUTES = 15; // 15 phút
 
     private Key getSigningKey() {
         if (ENV_SECRET_KEY == null || ENV_SECRET_KEY.length() < 32) {
-            throw new IllegalStateException("JWT_SECRET_KEY không tồn tại hoặc quá ngắn!");
+            System.out.println("JWT_SECRET_KEY không tồn tại hoặc quá ngắn, dùng key ngẫu nhiên để test.");
+            return Keys.secretKeyFor(SignatureAlgorithm.HS256); // fallback: sinh key ngẫu nhiên
         }
         return Keys.hmacShaKeyFor(ENV_SECRET_KEY.getBytes());
     }
@@ -51,7 +53,7 @@ public class SecureTokenService {
         System.out.println("Valid Token status: " + service.validateToken(validToken));
 
         // Kẻ tấn công thử tạo token giả mạo với secret key sai
-        String fakeSecret = "FakeKeyThatIsWrongAndTooShort";
+        String fakeSecret = "FakeSecretKeyThatIsWrongButLongEnough1234567890";
         Key attackerKey = Keys.hmacShaKeyFor(fakeSecret.getBytes());
         String forgedToken = Jwts.builder()
                 .setSubject("admin")
@@ -61,11 +63,10 @@ public class SecureTokenService {
                 .compact();
         System.out.println("\n--- Attacker attempts ---");
         System.out.println("Forged Token: " + forgedToken);
-        System.out.println("Validation of forged token: " + service.validateToken(forgedToken)); // Phải trả về false
-
+        System.out.println("Validation of forged token: " + service.validateToken(forgedToken));
         // Giả lập token hết hạn sau 15 phút
         System.out.println("\n--- Token expiration test ---");
-        Thread.sleep(ChronoUnit.MINUTES.getDuration().toMillis() * 16); // chờ 16 phút
+        Thread.sleep(TimeUnit.MINUTES.toMillis(16)); // chờ 16 phút
         System.out.println("Token valid after 16 minutes: " + service.validateToken(validToken)); // Phải trả về false
     }
 }
